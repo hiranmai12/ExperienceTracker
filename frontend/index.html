@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Employee Management System</title>
+  <!-- <link rel="stylesheet" href="index.css" /> -->
+  <script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.development.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.development.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.22.5/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/axios@1.4.0/dist/axios.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background:rgb(255, 255, 255);
+      color:black;
+      padding: 20px;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 2.8rem;
+      margin-bottom: 20px;
+      color: rgb(0, 0, 0);
+     
+    }
+
+    .form-section {
+      background: linear-gradient(to right, #00c9ff, #92fe9d);
+      color: #0a0a23;
+      padding: 20px;
+      border-radius: 10px;
+      margin-bottom: 30px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    }
+
+    .form-section h2 {
+      margin-bottom: 10px;
+      color: #0f3057;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 8px;
+      margin-bottom: 10px;
+      background-color:white;
+      color: #2d0c57;
+    }
+
+    input::placeholder {
+      color: #6b0f1a;
+    }
+
+    button {
+      padding: 10px 16px;
+      border: none;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+      margin-right: 10px;
+      transition: 0.3s ease;
+    }
+
+    .add-btn {
+      background-color: #20bf6b;
+      color: #fff;
+    }
+
+    .add-btn:hover {
+      background-color: #26de81;
+    }
+
+    .cancel-btn {
+      background-color: #eb3b5a;
+      color: #fff;
+    }
+
+    .cancel-btn:hover {
+      background-color: #fa8231;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background:white;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    th, td {
+      padding: 12px 14px;
+      text-align: center;
+      color:#000;
+      border-bottom: 1px solid rgba(255,255,255,0.2);
+    }
+
+    th {
+      background-color:whitesmoke;
+      color:black;
+    }
+
+    tr:nth-child(even) {
+      background-color: rgba(255,255,255,0.1);
+    }
+
+    .edit-btn {
+      background-color: #00ce64;
+      color: #000;
+    }
+
+    .edit-btn:hover {
+      background-color: #55efc4;
+    }
+
+    .delete-btn {
+      background-color: #d63031;
+      color: #fff;
+    }
+
+    .delete-btn:hover {
+      background-color: #e17055;
+    }
+
+    .error-message {
+      background-color: #ff4757;
+      color: #fff;
+      padding: 10px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    const App = () => {
+      const [employees, setEmployees] = useState([]);
+      const [newEmployee, setNewEmployee] = useState({
+        employeeId: '',
+        fullName: '',
+        designation: '',
+        educationalQualifications: { ug: '', pg: '' },
+        department: '',
+        dateOfBirth: '',
+        dateOfJoining: '',
+        previousExperience: { years: 0, months: 0, days: 0 },
+      });
+      const [isEditing, setIsEditing] = useState(false);
+      const [errorMessage, setErrorMessage] = useState('');
+
+      const today = new Date().toISOString().split('T')[0];
+      const minDOB = new Date(new Date().setFullYear(new Date().getFullYear() - 18))
+        .toISOString().split('T')[0];
+
+      useEffect(() => {
+        fetchEmployees();
+      }, []);
+
+      const fetchEmployees = async () => {
+        try {
+          const response = await axios.get('http://localhost:5000/api/employees');
+          setEmployees(response.data);
+          setErrorMessage('');
+        } catch (error) {
+          console.error('Error fetching employees:', error);
+          setErrorMessage('Failed to fetch employees: ' + (error.response?.data?.message || error.message));
+        }
+      };
+
+      const handleInputChange = (e, nestedField = null) => {
+        const { name, value } = e.target;
+        if (nestedField) {
+          setNewEmployee({
+            ...newEmployee,
+            [nestedField]: { ...newEmployee[nestedField], [name]: value },
+          });
+        } else {
+          setNewEmployee({ ...newEmployee, [name]: value });
+        }
+      };
+
+      const validateForm = () => {
+        if (!newEmployee.employeeId || !newEmployee.fullName || !newEmployee.designation || 
+            !newEmployee.educationalQualifications.ug || !newEmployee.educationalQualifications.pg || 
+            !newEmployee.department || !newEmployee.dateOfBirth || !newEmployee.dateOfJoining) {
+          setErrorMessage('Please fill in all required fields.');
+          return false;
+        }
+        if (newEmployee.previousExperience.months > 11 || newEmployee.previousExperience.days > 29) {
+          setErrorMessage('Previous experience months must be 0-11, and days must be 0-29.');
+          return false;
+        }
+        return true;
+      };
+
+      const handleAddOrUpdate = async () => {
+        if (!validateForm()) return;
+
+        try {
+          if (isEditing) {
+            const response = await axios.put(
+              `http://localhost:5000/api/employees/${newEmployee.employeeId}`,
+              newEmployee
+            );
+            setEmployees(employees.map(emp => (
+              emp.employeeId === newEmployee.employeeId ? response.data : emp
+            )));
+          } else {
+            const response = await axios.post('http://localhost:5000/api/employees', newEmployee);
+            setEmployees([...employees, response.data]);
+          }
+          resetForm();
+          setErrorMessage('');
+        } catch (error) {
+          console.error('Error saving employee:', error);
+          setErrorMessage('Error saving employee: ' + (error.response?.data?.message || error.message));
+        }
+      };
+
+      const handleEdit = (employee) => {
+        setNewEmployee({
+          ...employee,
+          dateOfBirth: new Date(employee.dateOfBirth).toISOString().split('T')[0],
+          dateOfJoining: new Date(employee.dateOfJoining).toISOString().split('T')[0],
+        });
+        setIsEditing(true);
+        setErrorMessage('');
+      };
+
+      const handleDelete = async (employeeId) => {
+        try {
+          await axios.delete(`http://localhost:5000/api/employees/${employeeId}`);
+          setEmployees(employees.filter(emp => emp.employeeId !== employeeId));
+          setErrorMessage('');
+        } catch (error) {
+          console.error('Error deleting employee:', error);
+          setErrorMessage('Error deleting employee: ' + (error.response?.data?.message || error.message));
+        }
+      };
+
+      const resetForm = () => {
+        setNewEmployee({
+          employeeId: '',
+          fullName: '',
+          designation: '',
+          educationalQualifications: { ug: '', pg: '' },
+          department: '',
+          dateOfBirth: '',
+          dateOfJoining: '',
+          previousExperience: { years: 0, months: 0, days: 0 },
+        });
+        setIsEditing(false);
+        setErrorMessage('');
+      };
+
+      const formatDuration = (duration) => {
+        if (!duration) return 'N/A';
+        return `${duration.years} years ${duration.months} months ${duration.days} days`;
+      };
+
+      return (
+        <div className="container mx-auto p-4">
+           <div className="flex justify-between items-center mb-6">
+  <h1 className="text-3xl font-bold">Employee Management System</h1>
+  <button
+    onClick={() => window.location.href = 'home.html'}
+    className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+  >
+    Logout
+  </button>
+</div>
+
+          {errorMessage && (
+            <div className="mb-4 p-2 bg-red-100 text-red-700 rounded">{errorMessage}</div>
+          )}
+
+          <div className="mb-8 p-4 bg-gray-100 rounded-lg">
+            <h2 className="text-xl font-semibold mb-2">{isEditing ? 'Edit Employee' : 'Add New Employee'}</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <input className="p-2 border rounded w-full" name="employeeId" placeholder="Employee ID *"
+                value={newEmployee.employeeId} onChange={handleInputChange} disabled={isEditing} />
+              <input className="p-2 border rounded w-full" name="fullName" placeholder="Name *"
+                value={newEmployee.fullName} onChange={handleInputChange} />
+              <input className="p-2 border rounded w-full" name="designation" placeholder="Designation *"
+                value={newEmployee.designation} onChange={handleInputChange} />
+              <input className="p-2 border rounded w-full" name="ug" placeholder="UG Qualification *"
+                value={newEmployee.educationalQualifications.ug}
+                onChange={(e) => handleInputChange(e, 'educationalQualifications')} />
+              <input className="p-2 border rounded w-full" name="pg" placeholder="PG Qualification *"
+                value={newEmployee.educationalQualifications.pg}
+                onChange={(e) => handleInputChange(e, 'educationalQualifications')} />
+              <input className="p-2 border rounded w-full" name="department" placeholder="Department *"
+                value={newEmployee.department} onChange={handleInputChange} />
+              <input className="p-2 border rounded w-full" type="date" name="dateOfBirth"
+                max={minDOB} value={newEmployee.dateOfBirth} onChange={handleInputChange} />
+              <input className="p-2 border rounded w-full" type="date" name="dateOfJoining"
+                max={today} value={newEmployee.dateOfJoining} onChange={handleInputChange} />
+              <div className="flex gap-2 col-span-2">
+                <input className="p-2 border rounded w-full" type="number" name="years" min="0"
+                  placeholder="Previous Exp (Years)"
+                  value={newEmployee.previousExperience.years}
+                  onChange={(e) => handleInputChange(e, 'previousExperience')} />
+                <input className="p-2 border rounded w-full" type="number" name="months" min="0" max="11"
+                  placeholder="Months"
+                  value={newEmployee.previousExperience.months}
+                  onChange={(e) => handleInputChange(e, 'previousExperience')} />
+                <input className="p-2 border rounded w-full" type="number" name="days" min="0" max="29"
+                  placeholder="Days"
+                  value={newEmployee.previousExperience.days}
+                  onChange={(e) => handleInputChange(e, 'previousExperience')} />
+              </div>
+            </div>
+
+            <div className="mt-4 flex gap-2">
+              <button onClick={handleAddOrUpdate} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                {isEditing ? 'Update' : 'Add'} Employee
+              </button>
+              {isEditing && (
+                <button onClick={resetForm} className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">
+                  Cancel
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="min-w-full bg-white border">
+              <thead>
+                <tr>
+                  <th className="px-4 py-2 border">EmpID</th>
+                  <th className="px-4 py-2 border">Name</th>
+                  <th className="px-4 py-2 border">Designation</th>
+                  <th className="px-4 py-2 border">UG</th>
+                  <th className="px-4 py-2 border">PG</th>
+                  <th className="px-4 py-2 border">Dept</th>
+                  <th className="px-4 py-2 border">D.O.B</th>
+                  <th className="px-4 py-2 border">Total Age</th>
+                  <th className="px-4 py-2 border">Current Exp</th>
+                  <th className="px-4 py-2 border">Previous Exp</th>
+                  <th className="px-4 py-2 border">Total Exp</th>
+                  <th className="px-4 py-2 border">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {employees.map(emp => (
+                  <tr key={emp.employeeId}>
+                    <td className="px-4 py-2 border">{emp.employeeId}</td>
+                    <td className="px-4 py-2 border">{emp.fullName}</td>
+                    <td className="px-4 py-2 border">{emp.designation}</td>
+                    <td className="px-4 py-2 border">{emp.educationalQualifications.ug}</td>
+                    <td className="px-4 py-2 border">{emp.educationalQualifications.pg}</td>
+                    <td className="px-4 py-2 border">{emp.department}</td>
+                    <td className="px-4 py-2 border">{new Date(emp.dateOfBirth).toLocaleDateString()}</td>
+                    <td className="px-4 py-2 border">{formatDuration(emp.totalAge)}</td>
+                    <td className="px-4 py-2 border">{formatDuration(emp.currentExperience)}</td>
+                    <td className="px-4 py-2 border">{formatDuration(emp.previousExperience)}</td>
+                    <td className="px-4 py-2 border">{formatDuration(emp.totalExperience)}</td>
+                    <td className="px-4 py-2 border flex gap-2">
+                      <button onClick={() => handleEdit(emp)}
+                        className="bg-yellow-500 text-white px-2 py-1 rounded hover:bg-yellow-600">
+                        Edit
+                      </button>
+                      <button onClick={() => handleDelete(emp.employeeId)}
+                        className="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600">
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      );
+    };
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>

@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Faculty Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.development.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.development.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.22.5/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/axios@1.4.0/dist/axios.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 text-black">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    const App = () => {
+      const facultyId = new URLSearchParams(window.location.search).get('id');
+      const [editingFaculty, setEditingFaculty] = useState(null);
+      const [errorMessage, setErrorMessage] = useState('');
+      const [isLoading, setIsLoading] = useState(true);
+
+      useEffect(() => {
+        if (!facultyId) {
+          setErrorMessage("Faculty ID missing. Please login again.");
+          setIsLoading(false);
+          return;
+        }
+
+        axios.get(`http://localhost:5000/api/employees/${facultyId}`)
+          .then(res => {
+            const data = res.data;
+            setEditingFaculty({
+              ...data,
+              dateOfBirth: new Date(data.dateOfBirth).toISOString().split('T')[0],
+              dateOfJoining: new Date(data.dateOfJoining).toISOString().split('T')[0],
+            });
+            setErrorMessage('');
+            setIsLoading(false);
+          })
+          .catch(() => {
+            setErrorMessage("Your profile has not been created by the admin yet.");
+            setIsLoading(false);
+          });
+      }, []);
+
+      const handleInputChange = (e, group = null) => {
+        const { name, value } = e.target;
+        if (group) {
+          setEditingFaculty({
+            ...editingFaculty,
+            [group]: { ...editingFaculty[group], [name]: value }
+          });
+        } else {
+          setEditingFaculty({ ...editingFaculty, [name]: value });
+        }
+      };
+
+      const handleUpdate = async () => {
+        try {
+          const res = await axios.put(`http://localhost:5000/api/employees/${facultyId}`, editingFaculty);
+          alert("Details updated successfully!");
+          setEditingFaculty({
+            ...res.data,
+            dateOfBirth: new Date(res.data.dateOfBirth).toISOString().split('T')[0],
+            dateOfJoining: new Date(res.data.dateOfJoining).toISOString().split('T')[0],
+          });
+        } catch (err) {
+          alert("Failed to update details.");
+        }
+      };
+
+      const formatDuration = (d) => {
+        return `${d.years}y ${d.months}m ${d.days}d`;
+      };
+
+      if (isLoading) return <div className="text-center mt-10">Loading...</div>;
+
+      if (errorMessage) {
+        return <div className="max-w-xl mx-auto mt-10 p-4 bg-red-100 text-red-700 rounded text-center">{errorMessage}</div>;
+      }
+
+      return (
+        <div className="max-w-4xl mx-auto mt-10 p-4">
+          <div className="flex justify-between items-center mb-6">
+  <h1 className="text-3xl font-bold">Faculty Dashboard</h1>
+  <button
+    onClick={() => window.location.href = 'home.html'}
+    className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+  >
+    Logout
+  </button>
+</div>
+
+
+          <div className="bg-white p-6 rounded shadow mb-6">
+            <h2 className="text-xl font-semibold mb-4">Edit Your Details</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <input value={editingFaculty.employeeId} disabled className="p-2 border rounded w-full" />
+              <input name="fullName" value={editingFaculty.fullName} onChange={handleInputChange} className="p-2 border rounded w-full" />
+              <input name="designation" value={editingFaculty.designation} onChange={handleInputChange} className="p-2 border rounded w-full" />
+              <input name="ug" value={editingFaculty.educationalQualifications.ug} onChange={(e) => handleInputChange(e, 'educationalQualifications')} className="p-2 border rounded w-full" />
+              <input name="pg" value={editingFaculty.educationalQualifications.pg} onChange={(e) => handleInputChange(e, 'educationalQualifications')} className="p-2 border rounded w-full" />
+              <input name="department" value={editingFaculty.department} onChange={handleInputChange} className="p-2 border rounded w-full" />
+              <input type="date" name="dateOfBirth" value={editingFaculty.dateOfBirth} onChange={handleInputChange} className="p-2 border rounded w-full" />
+              <input type="date" name="dateOfJoining" value={editingFaculty.dateOfJoining} onChange={handleInputChange} className="p-2 border rounded w-full" />
+              <input name="years" type="number" value={editingFaculty.previousExperience.years} onChange={(e) => handleInputChange(e, 'previousExperience')} className="p-2 border rounded w-full" />
+              <input name="months" type="number" value={editingFaculty.previousExperience.months} onChange={(e) => handleInputChange(e, 'previousExperience')} className="p-2 border rounded w-full" />
+              <input name="days" type="number" value={editingFaculty.previousExperience.days} onChange={(e) => handleInputChange(e, 'previousExperience')} className="p-2 border rounded w-full" />
+            </div>
+            <button onClick={handleUpdate} className="mt-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+              Update Details
+            </button>
+          </div>
+
+          <div className="bg-white p-4 rounded shadow">
+            <h2 className="text-xl font-semibold mb-4">Summary</h2>
+            <p><strong>Total Experience:</strong> {formatDuration(editingFaculty.totalExperience)}</p>
+            <p><strong>Current Experience:</strong> {formatDuration(editingFaculty.currentExperience)}</p>
+            <p><strong>Previous Experience:</strong> {formatDuration(editingFaculty.previousExperience)}</p>
+            <p><strong>Date of Birth:</strong> {new Date(editingFaculty.dateOfBirth).toLocaleDateString()}</p>
+          </div>
+        </div>
+      );
+    };
+   
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>

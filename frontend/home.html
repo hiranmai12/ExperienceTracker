@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Login | Faculty/Admin Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.development.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.development.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.22.5/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/axios@1.4.0/dist/axios.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 text-black">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState } = React;
+
+    const App = () => {
+      const [screen, setScreen] = useState('login'); // login or register
+      const [credentials, setCredentials] = useState({ facultyId: '', password: '' });
+      const [errorMessage, setErrorMessage] = useState('');
+
+      const handleInputChange = (e) => {
+        const { name, value } = e.target;
+        setCredentials({ ...credentials, [name]: value });
+      };
+
+     const handleRegister = async () => {
+  try {
+    if (credentials.facultyId.toLowerCase() === 'admin') {
+      setErrorMessage("Admin registration is not allowed.");
+      return;
+    }
+
+    await axios.post('http://localhost:5000/api/register', {
+      ...credentials,
+      role: 'faculty'  // force faculty role
+    });
+
+    alert("Registration successful. You can now login.");
+    setScreen('login');
+  } catch (err) {
+    setErrorMessage(err.response?.data?.message || 'Registration failed.');
+  }
+};
+const handleLogin = async () => {
+  try {
+    const res = await axios.post('http://localhost:5000/api/login', credentials);
+    console.log("Login Response:", res.data); 
+
+    const role = res.data.role;
+
+    if (role === 'admin') {
+      window.location.href = 'index.html'; 
+    } else {
+      window.location.href = `user.html?id=${res.data.facultyId}`;
+  // ✅ redirect to faculty dashboard
+    }
+  } catch (err) {
+    setErrorMessage(err.response?.data?.message || 'Login failed.');
+  }
+};
+
+
+      if (screen === 'register') {
+        return (
+          <div className="max-w-md mx-auto mt-10 p-6 bg-white shadow rounded">
+            <h2 className="text-2xl font-bold mb-4 text-center">Register</h2>
+            <input name="facultyId" placeholder="Faculty/Admin ID" onChange={handleInputChange} className="p-2 mb-2 w-full border rounded" />
+            <input name="password" type="password" placeholder="Password" onChange={handleInputChange} className="p-2 mb-4 w-full border rounded" />
+            <button onClick={handleRegister} className="bg-blue-600 text-white px-4 py-2 rounded w-full">Register</button>
+            <p className="text-sm mt-2 text-center">Already registered? <span className="text-blue-600 cursor-pointer" onClick={() => setScreen('login')}>Login</span></p>
+            {errorMessage && <p className="text-red-600 mt-2">{errorMessage}</p>}
+          </div>
+        );
+      }
+
+      if (screen === 'login') {
+        return (
+          <div className="max-w-md mx-auto mt-10 p-6 bg-white shadow rounded">
+            <h2 className="text-2xl font-bold mb-4 text-center">Login</h2>
+            <input name="facultyId" placeholder="Faculty/Admin ID" onChange={handleInputChange} className="p-2 mb-2 w-full border rounded" />
+            <input name="password" type="password" placeholder="Password" onChange={handleInputChange} className="p-2 mb-4 w-full border rounded" />
+            <button onClick={handleLogin} className="bg-green-600 text-white px-4 py-2 rounded w-full">Login</button>
+            <p className="text-sm mt-2 text-center">New user? <span className="text-blue-600 cursor-pointer" onClick={() => setScreen('register')}>Register</span></p>
+            {errorMessage && <p className="text-red-600 mt-2">{errorMessage}</p>}
+          </div>
+        );
+      }
+
+      return null;
+    };
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
